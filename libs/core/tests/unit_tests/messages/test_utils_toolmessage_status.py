@@ -1,11 +1,10 @@
-"""
-Test for ToolMessage status field preservation in convert_to_messages.
+"""Test for ToolMessage status field preservation in convert_to_messages.
 
-This test validates the fix for issue #32835 where ToolMessage.status 
+This test validates the fix for issue #32835 where ToolMessage.status
 was not preserved during convert_to_messages conversion.
 """
 
-from langchain_core.messages import convert_to_messages, ToolMessage
+from langchain_core.messages import ToolMessage, convert_to_messages
 
 
 class TestToolMessageStatusPreservation:
@@ -19,13 +18,13 @@ class TestToolMessageStatusPreservation:
             tool_call_id="foobar",
             status="error"
         )
-        
+
         # Convert to dict (simulating database storage)
         message_dict = original_message.model_dump()
-        
+
         # Convert back using convert_to_messages
         recovered_message = convert_to_messages([message_dict])[0]
-        
+
         # Status should be preserved
         assert original_message.status == recovered_message.status
         assert recovered_message.status == "error"
@@ -37,10 +36,10 @@ class TestToolMessageStatusPreservation:
             tool_call_id="success_call",
             status="success"
         )
-        
+
         message_dict = original_message.model_dump()
         recovered_message = convert_to_messages([message_dict])[0]
-        
+
         assert recovered_message.status == "success"
 
     def test_default_status_when_missing(self) -> None:
@@ -48,13 +47,13 @@ class TestToolMessageStatusPreservation:
         # Create message dict without status field
         message_dict = {
             "content": "Default status test",
-            "type": "tool", 
+            "type": "tool",
             "tool_call_id": "default_call"
         }
-        
+
         recovered_message = convert_to_messages([message_dict])[0]
-        
-        # Should default to "success" 
+
+        # Should default to "success"
         assert recovered_message.status == "success"
 
     def test_all_fields_preserved(self) -> None:
@@ -67,17 +66,17 @@ class TestToolMessageStatusPreservation:
             additional_kwargs={"custom": "value"},
             response_metadata={"source": "test"}
         )
-        
+
         message_dict = original_message.model_dump()
         recovered_message = convert_to_messages([message_dict])[0]
-        
+
         # Check all fields are preserved
         assert recovered_message.content == original_message.content
         assert recovered_message.tool_call_id == original_message.tool_call_id
         assert recovered_message.status == original_message.status
         assert recovered_message.artifact == original_message.artifact
         assert recovered_message.response_metadata == original_message.response_metadata
-        
+
         # additional_kwargs should be preserved correctly (not contain status)
         assert "status" not in recovered_message.additional_kwargs
         assert recovered_message.additional_kwargs.get("custom") == "value"
@@ -85,8 +84,8 @@ class TestToolMessageStatusPreservation:
     def test_issue_32835_reproduction(self) -> None:
         """Exact reproduction of issue #32835 from GitHub."""
         tool_message = ToolMessage(
-            content="Error: please fix your mistakes", 
-            tool_call_id="foobar", 
+            content="Error: please fix your mistakes",
+            tool_call_id="foobar",
             status="error"
         )
         tool_message_json = tool_message.model_dump()
@@ -94,7 +93,8 @@ class TestToolMessageStatusPreservation:
 
         # This assertion should pass with the fix
         assert tool_message.status == tool_message_recovered.status, (
-            f'received "{tool_message_recovered.status}", expected "{tool_message.status}"'
+            f'received "{tool_message_recovered.status}", '
+            f'expected "{tool_message.status}"'
         )
 
     def test_multiple_messages_conversion(self) -> None:
@@ -104,16 +104,17 @@ class TestToolMessageStatusPreservation:
             ToolMessage(content="Error 1", tool_call_id="call2", status="error"),
             ToolMessage(content="Success 2", tool_call_id="call3", status="success"),
         ]
-        
+
         # Convert to dicts and back
         message_dicts = [msg.model_dump() for msg in messages]
         recovered_messages = convert_to_messages(message_dicts)
-        
+
         # Check each message status is preserved
         expected_statuses = ["success", "error", "success"]
-        for i, (original, recovered, expected) in enumerate(
+        for i, (_original, recovered, expected) in enumerate(
             zip(messages, recovered_messages, expected_statuses)
         ):
             assert recovered.status == expected, (
                 f"Message {i}: expected {expected}, got {recovered.status}"
             )
+
